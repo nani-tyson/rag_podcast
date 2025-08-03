@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from app.rag_pipeline import RAGProcessor
+from fastapi.responses import JSONResponse
+from yt_dlp.utils import DownloadError
 
 router = APIRouter()
 
@@ -14,8 +16,19 @@ rag = RAGProcessor()
 
 @router.post("/upload-audio")
 async def upload_audio(request: URLRequest):
-    rag.ingest_url(request.url)
-    return {"message": "URL processed"}
+    try:
+        rag.ingest_url(request.url)
+        return {"message": "URL processed"}
+    except DownloadError as e:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Failed to download. Video may be unavailable, private, or restricted."}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @router.post("/ask")
 async def ask_question(request: QuestionRequest):
