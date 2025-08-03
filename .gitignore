@@ -1,0 +1,18 @@
+backend/.env
+# Compiled Python files
+__pycache__/
+*.pyc
+
+# Local Chroma DB and cache
+backend/chroma_store/
+backend/data/chroma/
+backend/cache_db.json
+
+# Transcripts (can be regenerated)
+backend/data/transcripts/
+
+# Uploaded media
+backend/uploads/
+
+# Temporary test files
+backend/test.py
