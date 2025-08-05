@@ -5,6 +5,7 @@ uvicorn
 # LangChain + community vector stores
 langchain
 langchain-community
+langchain-google-genai
 
 # LLM APIs
 openai
