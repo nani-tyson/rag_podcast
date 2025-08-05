@@ -14,8 +14,3 @@ aiofiles
 python-multipart
 pydantic
 sentence-transformers
-transformers
-scikit-learn
-tqdm
-typing-extensions
-requests
