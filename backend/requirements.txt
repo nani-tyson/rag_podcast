@@ -13,4 +13,3 @@ sqlalchemy
 aiofiles
 python-multipart
 pydantic
-sentence-transformers
