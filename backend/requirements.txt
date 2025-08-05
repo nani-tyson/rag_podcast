@@ -1,32 +1,15 @@
-# Core Framework
 fastapi
 uvicorn
-
-# LangChain + community vector stores
 langchain
 langchain-community
 langchain-google-genai
-
-# LLM APIs
 openai
 google-generativeai
-
-# Transcription
 assemblyai
-
-# Audio/video processing
 yt-dlp
 ffmpeg-python
-
-# Environment variables
 python-dotenv
-
-# Local DB & ORM
 sqlalchemy
-
-# File handling (for uploads/static)
 aiofiles
 python-multipart
-
-# Data validation
 pydantic
