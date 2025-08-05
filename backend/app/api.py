@@ -1,34 +1,30 @@
-from fastapi import APIRouter
-from pydantic import BaseModel
-from app.rag_pipeline import RAGProcessor
+from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
-from yt_dlp.utils import DownloadError
+from app.rag_pipeline import RAGProcessor
+import tempfile
+from pydantic import BaseModel
 
 router = APIRouter()
 
-class URLRequest(BaseModel):
-    url: str
-
 class QuestionRequest(BaseModel):
-    query: str  # Expecting a JSON body like { "query": "..." }
+    query: str
 
 rag = RAGProcessor()
 
 @router.post("/upload-audio")
-async def upload_audio(request: URLRequest):
+async def upload_audio(file: UploadFile = File(...)):
     try:
-        rag.ingest_url(request.url)
-        return {"message": "URL processed"}
-    except DownloadError as e:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "Failed to download. Video may be unavailable, private, or restricted."}
-        )
+        # Use a safe file suffix
+        suffix = "." + file.filename.split('.')[-1] if '.' in file.filename else ".wav"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(await file.read())
+            tmp_path = tmp.name
+
+        rag.ingest_file(tmp_path)
+        return {"message": "File processed successfully"}
+
     except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/ask")
 async def ask_question(request: QuestionRequest):

@@ -11,6 +11,7 @@ from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 import assemblyai as aai
 import json
+import shutil
 
 load_dotenv()
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
@@ -31,48 +32,21 @@ class RAGProcessor:
         with open(self.cache_db_path, "w") as f:
             json.dump(self.cache, f, indent=2)
 
-    def _get_url_hash(self, url):
-        return hashlib.md5(url.encode()).hexdigest()
+    def _get_file_hash(self, path):
+        """Generate hash from local file content"""
+        hasher = hashlib.md5()
+        with open(path, "rb") as f:
+            while chunk := f.read(8192):
+                hasher.update(chunk)
+        return hasher.hexdigest()
 
-    def _download_and_convert(self, url):
-        temp_dir = tempfile.mkdtemp()
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'outtmpl': os.path.join(temp_dir, 'input.%(ext)s'),
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'wav',
-                'preferredquality': '192',
-            }],
-            'quiet': True,
-        }
+    def ingest_file(self, file_path: str, refresh=False):
+        file_hash = self._get_file_hash(file_path)
 
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
-
-        # Find the .wav file in temp_dir
-        wav_file = None
-        for fname in os.listdir(temp_dir):
-            if fname.lower().endswith('.wav'):
-                wav_file = os.path.join(temp_dir, fname)
-                break
-        if not wav_file or not os.path.exists(wav_file):
-            raise FileNotFoundError("No .wav file found after yt_dlp download.")
-
-        audio_path = os.path.join(temp_dir, "audio.wav")
-        if wav_file != audio_path:
-            # Rename or copy to audio.wav
-            import shutil
-            shutil.copy(wav_file, audio_path)
-
-        return audio_path
-
-    def ingest_url(self, url: str, refresh=False):
-        url_hash = self._get_url_hash(url)
-
-        if not refresh and url_hash in self.cache:
+        if not refresh and file_hash in self.cache:
             print("✅ Loaded from cache")
-            self.db = Chroma(persist_directory=self.cache[url_hash]["db_path"], embedding_function=HuggingFaceEmbeddings(model_name="BAAI/bge-small-en"))
+            self.db = Chroma(persist_directory=self.cache[file_hash]["db_path"],
+                             embedding_function=HuggingFaceEmbeddings(model_name="BAAI/bge-small-en"))
             self.qa_chain = RetrievalQA.from_chain_type(
                 llm=ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.2),
                 retriever=self.db.as_retriever(),
@@ -80,20 +54,20 @@ class RAGProcessor:
             )
             return
 
-        audio_path = self._download_and_convert(url)
-
         transcriber = aai.Transcriber()
-        transcript = transcriber.transcribe(audio_path, config=aai.TranscriptionConfig(speaker_labels=True))
+        transcript = transcriber.transcribe(file_path, config=aai.TranscriptionConfig(speaker_labels=True))
 
         utterances = transcript.utterances
-        documents = []
+        if not utterances:
+            raise ValueError("Transcription returned no utterances. Please use a valid audio file.")
 
+        documents = []
         for utt in utterances:
             metadata = {
                 "speaker": utt.speaker,
                 "start": self.seconds_to_timestamp(utt.start),
                 "end": self.seconds_to_timestamp(utt.end),
-                "audio_file": url,
+                "audio_file": file_path,
             }
             documents.append(Document(page_content=utt.text, metadata=metadata))
 
@@ -101,12 +75,13 @@ class RAGProcessor:
         chunks = splitter.split_documents(documents)
 
         embedder = HuggingFaceEmbeddings(model_name="BAAI/bge-small-en")
-        persist_dir = os.path.join("chroma_store", url_hash)
+        persist_dir = os.path.join("chroma_store", file_hash)
         os.makedirs(persist_dir, exist_ok=True)
+
         self.db = Chroma.from_documents(chunks, embedder, persist_directory=persist_dir)
         self.db.persist()
 
-        self.cache[url_hash] = {"db_path": persist_dir}
+        self.cache[file_hash] = {"db_path": persist_dir}
         self._save_cache()
 
         self.qa_chain = RetrievalQA.from_chain_type(
