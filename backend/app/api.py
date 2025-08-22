@@ -14,7 +14,7 @@ rag = RAGProcessor()
 @router.post("/upload-audio")
 async def upload_audio(file: UploadFile = File(...)):
     try:
-        # Use a safe file suffix
+        # Use a safe file suffix (default .wav if none)
         suffix = "." + file.filename.split('.')[-1] if '.' in file.filename else ".wav"
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(await file.read())
@@ -38,5 +38,5 @@ def generate_summary():
 @router.get("/")
 async def root():
     return {
-        "message": "Welcome to the RAG API. Use /upload-audio to upload audio files and /ask to ask questions."
+        "message": "Welcome to the RAG API. Upload audio with /upload-audio, then ask questions with /ask."
     }

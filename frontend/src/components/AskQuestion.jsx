@@ -1,3 +1,4 @@
+// src/components/AskQuestion.jsx
 import { useState } from "react";
 import axios from "../api/axios";
 
@@ -14,10 +15,7 @@ const AskQuestion = () => {
     setAnswer(null);
 
     try {
-      const response = await axios.post("/ask", {
-        query: question, // send as JSON
-      });
-
+      const response = await axios.post("/ask", { query: question });
       setAnswer(response.data);
     } catch (error) {
       console.error("Error fetching answer:", error);
@@ -27,28 +25,30 @@ const AskQuestion = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto mt-8">
-      <form onSubmit={handleAsk} className="flex flex-col gap-4">
+    <div className="w-full max-w-2xl mx-auto mt-10 px-4">
+      <form
+        onSubmit={handleAsk}
+        className="flex flex-col sm:flex-row gap-3 bg-gray-900/60 p-4 rounded-2xl border border-gray-700 shadow-lg"
+      >
         <input
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question..."
-          className="border p-2 rounded"
+          placeholder="Ask something insightful..."
+          className="flex-1 p-3 rounded-xl bg-gray-800 text-white border border-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
         />
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-6 py-3 rounded-xl text-white font-semibold transition"
         >
-          {loading ? "Asking..." : "Ask"}
+          {loading ? "Thinking..." : "Ask"}
         </button>
       </form>
 
       {answer && (
-        <div className="mt-6 bg-gray-100 p-4 rounded shadow">
-          <h2 className="font-bold">Answer:</h2>
-          <p>{answer.answer}</p>
+        <div className="mt-8">
+          <ResponseCard response={answer} />
         </div>
       )}
     </div>

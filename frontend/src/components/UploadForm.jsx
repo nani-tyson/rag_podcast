@@ -4,19 +4,27 @@ import axios from "../api/axios";
 import Loader from "./Loader";
 
 const UploadForm = ({ onSuccess }) => {
-  const [url, setUrl] = useState("");
+  const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async e => {
     e.preventDefault();
+    if (!file) return;
+
     setLoading(true);
 
     try {
-      await axios.post("/upload-audio", { url });
+      const formData = new FormData();
+      formData.append("file", file);
+
+      await axios.post("/upload-audio", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
       onSuccess(); // callback to refresh or show success
     } catch (error) {
       console.error("Upload failed", error);
-      alert("Failed to process the URL.");
+      alert("Failed to upload the file.");
     } finally {
       setLoading(false);
     }
@@ -25,11 +33,10 @@ const UploadForm = ({ onSuccess }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <input
-        type="text"
+        type="file"
+        accept="audio/*"
         className="w-full p-2 border border-gray-300 rounded"
-        placeholder="Enter YouTube/Podcast URL"
-        value={url}
-        onChange={e => setUrl(e.target.value)}
+        onChange={e => setFile(e.target.files[0])}
         required
       />
       <button

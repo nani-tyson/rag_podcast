@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://rag-podcast.onrender.com', // or your deployed backend URL
+  baseURL: ' http://127.0.0.1:8000', // or your deployed backend URL
   headers: {
     'Content-Type': 'application/json',
   },
