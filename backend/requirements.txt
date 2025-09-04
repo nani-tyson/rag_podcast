@@ -4,6 +4,7 @@ python-dotenv
 python-multipart
 assemblyai
 pydantic
+requests
 
 # LangChain + ecosystem
 langchain
