@@ -7,7 +7,7 @@ app = FastAPI()
 origins = [
     "http://127.0.0.1:5173",   # local frontend (dev)
     "http://localhost:5173",   # another local alias
-    "https://rag-podcast.vercel.app/",  # replace with your deployed frontend domain
+    "https://rag-podcast.vercel.app",  # replace with your deployed frontend domain
 ]
 # CORS (allow frontend to call this backend)
 app.add_middleware(
