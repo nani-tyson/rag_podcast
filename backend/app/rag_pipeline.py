@@ -1,6 +1,5 @@
 import os
 import hashlib
-import tempfile
 import json
 from dotenv import load_dotenv
 from langchain_core.documents import Document
@@ -44,8 +43,10 @@ class RAGProcessor:
 
         if not refresh and file_hash in self.cache:
             print("✅ Loaded from cache")
-            self.db = Chroma(persist_directory=self.cache[file_hash]["db_path"],
-                             embedding_function=HuggingFaceEmbeddings(model_name="BAAI/bge-small-en"))
+            self.db = Chroma(
+                persist_directory=self.cache[file_hash]["db_path"],
+                embedding_function=HuggingFaceEmbeddings(model_name="BAAI/bge-small-en")
+            )
             self.qa_chain = RetrievalQA.from_chain_type(
                 llm=ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.2),
                 retriever=self.db.as_retriever(),
