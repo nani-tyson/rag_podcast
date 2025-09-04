@@ -14,8 +14,8 @@ import assemblyai as aai
 load_dotenv()
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 
-# ✅ Use a lighter embedding model to save memory
-EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+# ✅ Configurable embedding model (lighter by default)
+EMBED_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
 
 
 class RAGProcessor:
@@ -42,6 +42,13 @@ class RAGProcessor:
                 hasher.update(chunk)
         return hasher.hexdigest()
 
+    def _get_embedder(self):
+        """Return embedding model (configurable via .env)."""
+        try:
+            return HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+        except Exception as e:
+            raise RuntimeError(f"❌ Failed to load embedding model '{EMBED_MODEL}': {str(e)}")
+
     def ingest_file(self, file_path: str, refresh=False):
         """
         Transcribe uploaded audio, embed it, and store in ChromaDB.
@@ -49,11 +56,12 @@ class RAGProcessor:
         """
         file_hash = self._get_file_hash(file_path)
 
+        # ✅ If cached, load DB instead of reprocessing
         if not refresh and file_hash in self.cache:
             print("✅ Loaded from cache")
             self.db = Chroma(
                 persist_directory=self.cache[file_hash]["db_path"],
-                embedding_function=HuggingFaceEmbeddings(model_name=EMBED_MODEL),
+                embedding_function=self._get_embedder(),
             )
             self.qa_chain = RetrievalQA.from_chain_type(
                 llm=ChatGoogleGenerativeAI(model="models/gemini-1.5-flash", temperature=0.2),
@@ -70,7 +78,7 @@ class RAGProcessor:
 
         utterances = transcript.utterances
         if not utterances:
-            raise ValueError("Transcription returned no utterances. Please upload a valid audio file.")
+            raise ValueError("❌ Transcription returned no utterances. Please upload a valid audio file.")
 
         # Step 2: Convert transcript into LangChain documents
         documents = []
@@ -88,7 +96,7 @@ class RAGProcessor:
         chunks = splitter.split_documents(documents)
 
         # Step 4: Store in Chroma DB
-        embedder = HuggingFaceEmbeddings(model_name=EMBED_MODEL)
+        embedder = self._get_embedder()
         persist_dir = os.path.join("chroma_store", file_hash)
         os.makedirs(persist_dir, exist_ok=True)
 
@@ -108,7 +116,7 @@ class RAGProcessor:
     def ask(self, query: str):
         """Ask a question against the ingested audio transcript"""
         if not hasattr(self, "qa_chain"):
-            return {"error": "No audio ingested yet. Please upload a file first."}
+            return {"error": "❌ No audio ingested yet. Please upload a file first."}
 
         result = self.qa_chain.invoke({"query": query})
         sources = []
@@ -132,6 +140,6 @@ class RAGProcessor:
     def generate_summary(self):
         """Generate a summary of ingested content"""
         if not hasattr(self, "qa_chain"):
-            return {"error": "No audio ingested yet. Please upload a file first."}
+            return {"error": "❌ No audio ingested yet. Please upload a file first."}
 
         return self.ask("Give me a concise summary of the uploaded audio content.")
